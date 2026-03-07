@@ -22,20 +22,23 @@ const aiLimiter = new Ratelimit({
 
 const authLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(5, "1 m"),
+  limiter: Ratelimit.slidingWindow(10, "1 m"),
   prefix: "ratelimit_auth",
 });
 
 const messageLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(3, "1 m"), 
+  limiter: Ratelimit.slidingWindow(5, "1 m"),
   prefix: "ratelimit_message",
 });
 
 export default async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const pathname = url.pathname;
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ?? "127.0.0.1";
+  const ip =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    "127.0.0.1";
 
   // --- 1. HARD BYPASS ---
   if (
@@ -64,14 +67,14 @@ export default async function middleware(request: NextRequest) {
     const retryAfter = Math.max(1, Math.floor((limitResult.reset - now) / 1000));
 
     return NextResponse.json(
-      { 
-        success: false, 
-        message: `Too many requests. Please try again in ${retryAfter} seconds.`, 
-        retryAfter 
+      {
+        success: false,
+        message: `Too many requests. Please try again in ${retryAfter} seconds.`,
+        retryAfter
       },
-      { 
-        status: 429, 
-        headers: { "Retry-After": retryAfter.toString() } 
+      {
+        status: 429,
+        headers: { "Retry-After": retryAfter.toString() }
       }
     );
   }
