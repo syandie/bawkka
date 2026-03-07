@@ -8,60 +8,85 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-const ratelimit = new Ratelimit({
-  redis: redis,
-  limiter: Ratelimit.slidingWindow(25, "10 s"),
-  analytics: true,
-  prefix: "@upstash/ratelimit",
+const globalLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(50, "10 s"),
+  prefix: "ratelimit_global",
 });
 
-export default async function proxy(request: NextRequest) {
+const aiLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, "1 m"),
+  prefix: "ratelimit_ai",
+});
+
+const authLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "1 m"),
+  prefix: "ratelimit_auth",
+});
+
+const messageLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(3, "1 m"), 
+  prefix: "ratelimit_message",
+});
+
+export default async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const pathname = url.pathname;
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ?? "127.0.0.1";
 
-  // 1. HARD BYPASS
+  // --- 1. HARD BYPASS ---
   if (
     pathname.startsWith('/_next') ||
     pathname.includes('/api/auth') ||
-    pathname.match(/\.(xml|txt|webp|ico)$/) ||
-    ['/apis', '/terms', '/privacy-policy', '/faq', '/about'].includes(pathname)
+    pathname.match(/\.(xml|txt|webp|ico|png|jpg|jpeg|svg|css|js)$/) ||
+    ['/terms', '/privacy-policy', '/faq', '/about'].includes(pathname)
   ) {
     return NextResponse.next();
   }
 
-  // 2. Ratelimiting
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ?? "127.0.0.1";
-  try {
-    const { success } = await ratelimit.limit(ip);
-    if (!success) return new NextResponse("Too Many Requests", { status: 429 });
-  } catch (e) {
-    console.error("Ratelimit error", e);
+  // --- 2. DYNAMIC RATE LIMITING ---
+  let limitResult;
+  if (pathname.startsWith("/api/huggingface")) {
+    limitResult = await aiLimiter.limit(ip);
+  } else if (pathname.startsWith("/api/sign-in") || pathname.startsWith("/api/sign-up")) {
+    limitResult = await authLimiter.limit(ip);
+  } else if (pathname.startsWith("/api/send-message")) {
+    limitResult = await messageLimiter.limit(ip);
+  } else {
+    limitResult = await globalLimiter.limit(ip);
   }
 
-  // 3. AUTHENTICATION LOGIC
-  // IMPORTANT: Use secureCookie: true if you are on Vercel
-  const token = await getToken({ 
-    req: request, 
-    secret: process.env.NEXTAUTH_SECRET,
-    raw: false // Ensures we get the decoded object
-  });
+  if (!limitResult.success) {
+    const now = Date.now();
+    const retryAfter = Math.max(1, Math.floor((limitResult.reset - now) / 1000));
 
-  const isAuthPage = [
-    "/sign-in", "/sign-up", "/verify", "/forgot-password", "/reset-password"
-  ].some(path => pathname.startsWith(path));
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: `Too many requests. Please try again in ${retryAfter} seconds.`, 
+        retryAfter 
+      },
+      { 
+        status: 429, 
+        headers: { "Retry-After": retryAfter.toString() } 
+      }
+    );
+  }
 
+  // --- 3. AUTHENTICATION LOGIC ---
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const isAuthPage = ["/sign-in", "/sign-up", "/verify"].some(path => pathname.startsWith(path));
   const isProtectedRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/settings");
-  const isForceLogout = pathname === "/sign-in" && url.searchParams.get("force") === "true";
 
-  // A. Redirect Authenticated users away from Auth pages
-  if (token && isAuthPage && !isForceLogout) {
+  if (token && isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // B. Redirect Unauthenticated users away from Protected routes
   if (!token && isProtectedRoute) {
     const signInUrl = new URL("/sign-in", request.url);
-    // Optional: add callbackUrl so users return to dashboard after login
     signInUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(signInUrl);
   }
@@ -70,7 +95,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.webp$|sitemap\\.xml$|robots\\.txt$).*)',
-  ],
+  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.webp$|sitemap\\.xml$|robots\\.txt$).*)'],
 };
