@@ -114,7 +114,7 @@ export const Navbar = () => {
                                         <div className="flex items-center gap-2 mb-8">
                                             <div className="overflow-hidden flex items-center justify-center w-10 h-10">
                                                 <Image
-                                                    src="/bawkKA.webp"
+                                                    src="/bawkka.webp"
                                                     alt="Logo"
                                                     width={80}
                                                     height={80}
@@ -200,7 +200,7 @@ export const Navbar = () => {
                                                 <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
                                                     <div className="shrink-0 w-8 h-8 flex items-center justify-center bg-white rounded-xl">
                                                         <Image
-                                                            src="/bawkKA.webp"
+                                                            src="/bawkka.webp"
                                                             alt="Logo"
                                                             width={40}
                                                             height={40}
