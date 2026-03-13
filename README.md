@@ -1,7 +1,7 @@
 
-# 🦉 backKA | Anonymous Intel & Feedback
+# 🦉 bawkKA | Anonymous Intel & Feedback
 
-**backKA** is a high-performance, anonymous messaging platform built for secure "whispers." It prioritizes user anonymity and data integrity through a verified-ownership model and modern web standards.
+**bawkKA** is a high-performance, anonymous messaging platform built for secure "whispers." It prioritizes user anonymity and data integrity through a verified-ownership model and modern web standards.
 
 ## 🛠 Technical Stack
 
@@ -19,9 +19,9 @@
 
 ### 1. The Onboarding Pipeline
 
-To maintain a high-trust environment, backKA uses a strict multi-stage verification flow:
+To maintain a high-trust environment, bawkKA uses a strict multi-stage verification flow:
 
-Registration: Users claim a unique handle via the [Sign Up](https://backka.sandeshkharel.com.np/sign-up) page.
+Registration: Users claim a unique handle via the [Sign Up](https://bawkka.sandeshkharel.com.np/sign-up) page.
 
 OTP Verification: A 6-digit code is dispatched via Resend. Users must verify on the Verify Account screen.
 
@@ -81,7 +81,7 @@ The project is optimized for **Vercel**. Every push to `main` triggers an automa
 * `src/app`: Next.js App Router (Pages, Layouts, and API Routes).
 * `/src/components`: UI components (Shadcn) and Page-specific logic.
 * `/src/context`: Global state providers (Auth, Theme).
-* `/public`: Static assets including `backka.webp` and OG images.
+* `/public`: Static assets including `bawkka.webp` and OG images.
 
 ---
 
