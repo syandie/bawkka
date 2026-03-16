@@ -30,7 +30,7 @@ export const Footer = () => {
               A secure bridge for honest intelligence. Built with privacy-first architecture and powered by Hugging Face open-source models.
             </p>
             <div className="flex gap-4">
-              <Link href="https://github.com/sandesh-k18" className="text-slate-500 hover:text-white transition-colors">
+              <Link href="https://github.com/syandie" className="text-slate-500 hover:text-white transition-colors">
                 <Github className="w-5 h-5" />
               </Link>
             </div>

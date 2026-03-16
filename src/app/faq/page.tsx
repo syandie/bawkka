@@ -101,7 +101,7 @@ export default function FAQPage() {
                         Can't find the answer you're looking for? Reach out to our team.
                     </p>
                     <Link
-                        href="https://github.com/sandesh-k18"
+                        href="https://github.com/syandie"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="relative z-10"

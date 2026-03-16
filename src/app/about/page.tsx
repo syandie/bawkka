@@ -80,7 +80,7 @@ export default function AboutPage() {
                             <h4 className="font-bold text-slate-900 text-lg">
                                 Developed by{" "}
                                 <a
-                                    href="https://github.com/sandesh-k18"
+                                    href="https://github.com/syandie"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="relative inline-block text-indigo-600 group"
