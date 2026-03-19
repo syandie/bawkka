@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -19,13 +19,16 @@ import {
 import { Textarea } from '@/src/components/ui/textarea';
 import { toast } from 'sonner';
 import * as z from 'zod';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation'; // Added useSearchParams
 import { messageSchema } from '@/src/schemas/messageSchema'; 
 import { ApiResponse } from '@/src/types/apiResponse';
 
 export default function SendMessage() {
   const params = useParams<{ username: string }>();
+  const searchParams = useSearchParams(); // Use this to read ?embed=true
+  
   const username = params.username.toLowerCase(); 
+  const isEmbedded = searchParams.get("embed") === "true"; // Fixed parameter reading
 
   const [isLoading, setIsLoading] = useState(false);
   const [suggestedMessages, setSuggestedMessages] = useState<string[]>([
@@ -35,6 +38,15 @@ export default function SendMessage() {
   ]);
   const [isSuggestLoading, setIsSuggestLoading] = useState(false);
   const [isCooldown, setIsCooldown] = useState(false);
+
+  // Apply the CSS class to body for the transparency jugad
+  useEffect(() => {
+    if (isEmbedded) {
+      document.body.classList.add("is-embedded");
+    } else {
+      document.body.classList.remove("is-embedded");
+    }
+  }, [isEmbedded]);
 
   const form = useForm<z.infer<typeof messageSchema>>({
     resolver: zodResolver(messageSchema),
@@ -51,7 +63,7 @@ export default function SendMessage() {
     try {
       const response = await axios.post<ApiResponse>('/api/send-message', {
         ...data,
-        username, // This is now guaranteed to be lowercase
+        username,
       });
 
       toast.success(response.data.message);
@@ -71,26 +83,17 @@ export default function SendMessage() {
       toast.error("Please wait a few seconds before requesting again.");
       return;
     }
-
     setIsSuggestLoading(true);
-
     try {
       const response = await axios.post('/api/suggest-messages');
       const rawQuestions = response.data?.questions;
-
-      if (!rawQuestions) {
-        throw new Error("No questions returned");
-      }
-
+      if (!rawQuestions) throw new Error("No questions returned");
       const questionsArray = rawQuestions.split('||');
       setSuggestedMessages(questionsArray);
       toast.success("New suggestions generated!");
-
       setIsCooldown(true);
       setTimeout(() => setIsCooldown(false), 10000);
-
     } catch (error: any) {
-      console.error(error);
       const errorMessage = error?.response?.data?.message || error?.message || "Failed to fetch AI suggestions";
       toast.error(errorMessage);
     } finally {
@@ -99,10 +102,16 @@ export default function SendMessage() {
   };
 
   return (
-    <div className="container mx-auto my-8 p-6 bg-white rounded max-w-4xl">
-      <h1 className="text-4xl font-bold mb-6 text-center">
-        Public Profile Link
-      </h1>
+    // If embedded, we remove max-width and background to let the portfolio handle it
+    <div className={`container mx-auto p-6 ${isEmbedded ? 'bg-transparent max-w-full my-0' : 'bg-white rounded max-w-4xl my-8'}`}>
+      
+      {/* Hide Header if embedded */}
+      {!isEmbedded && (
+        <h1 className="text-4xl font-bold mb-6 text-center">
+          Public Profile Link
+        </h1>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
@@ -110,7 +119,9 @@ export default function SendMessage() {
             name="content"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Send Anonymous Message to @{username}</FormLabel>
+                <FormLabel className={isEmbedded ? "text-sm opacity-80" : ""}>
+                  Send Anonymous Message to @{username}
+                </FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Write your anonymous message here"
@@ -123,20 +134,15 @@ export default function SendMessage() {
             )}
           />
           <div className="flex justify-center">
-            {isLoading ? (
-              <Button disabled>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Please wait
-              </Button>
-            ) : (
-              <Button type="submit" disabled={isLoading || !messageContent}>
-                Send It
-              </Button>
-            )}
+            <Button type="submit" disabled={isLoading || !messageContent}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isLoading ? "Please wait" : "Send It"}
+            </Button>
           </div>
         </form>
       </Form>
 
+      {/* Suggestion Section */}
       <div className="space-y-4 my-8">
         <div className="space-y-2">
           <Button
@@ -145,14 +151,12 @@ export default function SendMessage() {
             className="my-4"
             variant="outline"
           >
-            {isSuggestLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : null}
+            {isSuggestLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isCooldown ? "Wait 10s..." : "Suggest Messages"}
           </Button>
-          <p>Click on any message below to select it.</p>
+          <p className="text-xs opacity-60">Click on any message below to select it.</p>
         </div>
-        <Card>
+        <Card className={isEmbedded ? "bg-transparent border-dashed" : ""}>
           <CardHeader>
             <h3 className="text-xl font-semibold">Messages</h3>
           </CardHeader>
@@ -170,13 +174,19 @@ export default function SendMessage() {
           </CardContent>
         </Card>
       </div>
-      <Separator className="my-6" />
-      <div className="text-center">
-        <div className="mb-4">Get Your Message Board</div>
-        <a href="/sign-up">
-          <Button>Create Your Account</Button>
-        </a>
-      </div>
+
+      {/* Hide Footer if embedded */}
+      {!isEmbedded && (
+        <>
+          <Separator className="my-6" />
+          <div className="text-center">
+            <div className="mb-4">Get Your Message Board</div>
+            <a href="/sign-up">
+              <Button>Create Your Account</Button>
+            </a>
+          </div>
+        </>
+      )}
     </div>
   );
 }
