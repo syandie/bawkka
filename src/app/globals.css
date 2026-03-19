@@ -116,6 +116,11 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* If ?embed=true is in URL, kill the background */
+body.is-embedded {
+  background: transparent !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
